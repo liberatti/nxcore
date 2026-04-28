@@ -5,8 +5,13 @@ socketio = None
 
 def init_socketio(app):
     global socketio
-    socketio = SocketIO(cors_allowed_origins="*", async_mode="eventlet")
-    socketio.init_app(app)
+
+    socketio = SocketIO(
+        app,
+        async_mode="gevent",
+        cors_allowed_origins="*"
+    )
+
     return socketio
 
 
@@ -19,5 +24,5 @@ def get_socketio():
 
 
 def emit_event(event_name, data=None, **kwargs):
-    if socketio:
-        socketio.emit(event_name, data, **kwargs)
+    sio = get_socketio()
+    sio.emit(event_name, data, **kwargs)

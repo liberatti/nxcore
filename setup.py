@@ -7,7 +7,7 @@ readme = (this_dir / "README.md").read_text(encoding="utf-8")
 
 setup(
     name="nxcore",
-    version="1.0.2",
+    version="1.0.3",
     author="Gustavo Liberatti",
     author_email="liberatti.gustavo@gmail.com",
     description="Internal library for use in private projects.",
