@@ -7,7 +7,7 @@ readme = (this_dir / "README.md").read_text(encoding="utf-8")
 
 setup(
     name="nxcore",
-    version="v1.0.0",
+    version="v1.0.1",
     author="Gustavo Liberatti",
     author_email="liberatti.gustavo@gmail.com",
     description="Internal library for use in private projects.",
@@ -17,6 +17,7 @@ setup(
     packages=find_packages(),
     include_package_data=True,
     install_requires=[
+<<<<<<< HEAD
         "requests>=2.33.1",
         "pytz>=2025.1",
         "flask>=3.1.3",
@@ -26,6 +27,16 @@ setup(
     ],
     extras_require={
         "web": [
+=======
+        "requests>=2.33.1,<3",
+        "pytz>=2025.1,<2026",
+        "PyJWT>=2.12.1,<3",
+        "marshmallow>=4.3.0,<5",
+    ],
+    extras_require={
+        "web": [
+            "flask>=3.1.3,<4",
+>>>>>>> develop
             "flask-socketio>=5.6.0",
             "eventlet>=0.40.4",
         ],
