@@ -75,5 +75,5 @@ def jwt_create_access_token(sub, profile=None, authorities=None, extra_clains=No
 
 def jwt_create_refresh_token(sub):
     now = datetime.now(base_config.get('TZ')) + timedelta(hours=24)
-    payload = {"exp": int(now.timestamp()), "sub": sub, "aud": base_config.get('JWT_AUD')}
+    payload = {"exp": int(now.timestamp()), "sub": str(sub), "aud": base_config.get('JWT_AUD')}
     return jwt.encode(payload, base_config.get('JWT_SECRET_KEY'), algorithm="HS256")
