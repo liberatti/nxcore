@@ -1,18 +1,53 @@
 name: Release Tag
 
 on:
-  push:
-    tags:
-      - "v*"
+  pull_request:
+    branches:
+      - "main"
+    types:
+      - closed
 
 permissions:
   contents: write
 
 jobs:
   publish-tag:
+    if: github.event.pull_request.merged == true
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Extract version from branch name
+        id: get_version
+        run: |
+          BRANCH_NAME="${{ github.event.pull_request.head.ref }}"
+          if [[ "$BRANCH_NAME" =~ ^v(.*)-rc$ ]]; then
+            VERSION="${BRANCH_NAME%-rc}"
+            echo "version=$VERSION" >> $GITHUB_OUTPUT
+            echo "branch=$BRANCH_NAME" >> $GITHUB_OUTPUT
+          else
+            echo "Branch $BRANCH_NAME does not match v*-rc pattern"
+            exit 1
+          fi
+
+      - name: Create and push tag
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git tag ${{ steps.get_version.outputs.version }}
+          git push origin ${{ steps.get_version.outputs.version }}
+
+      - name: Create GitHub Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create ${{ steps.get_version.outputs.version }} --title "${{ steps.get_version.outputs.version }}" --generate-notes
+
+      - name: Delete source branch
+        run: |
+          git push origin --delete ${{ steps.get_version.outputs.branch }}
 
       - name: Set up Python 3.12
         uses: actions/setup-python@v5
