@@ -25,7 +25,7 @@ jobs:
           BRANCH_NAME="${{ github.event.pull_request.head.ref }}"
           if [[ "$BRANCH_NAME" =~ ^v(.*)-(rc|fix)$ ]]; then
             if [[ "$BRANCH_NAME" =~ -fix$ ]]; then
-              VERSION="${BRANCH_NAME%-fix}-hotfix"
+              VERSION="${BRANCH_NAME%-fix}-hotfix-$(date +%Y%m%d%H%M%S)"
             else
               VERSION="${BRANCH_NAME%-rc}"
             fi
