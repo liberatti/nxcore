@@ -24,8 +24,11 @@ jobs:
         run: |
           BRANCH_NAME="${{ github.event.pull_request.head.ref }}"
           if [[ "$BRANCH_NAME" =~ ^v(.*)-(rc|fix)$ ]]; then
-            VERSION="${BRANCH_NAME%-rc}"
-            VERSION="${VERSION%-fix}"
+            if [[ "$BRANCH_NAME" =~ -fix$ ]]; then
+              VERSION="${BRANCH_NAME%-fix}-hotfix"
+            else
+              VERSION="${BRANCH_NAME%-rc}"
+            fi
             echo "version=$VERSION" >> $GITHUB_OUTPUT
             echo "branch=$BRANCH_NAME" >> $GITHUB_OUTPUT
           else
