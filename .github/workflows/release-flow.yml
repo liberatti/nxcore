@@ -39,16 +39,6 @@ jobs:
           git tag ${{ steps.get_version.outputs.version }}
           git push origin ${{ steps.get_version.outputs.version }}
 
-      - name: Create GitHub Release
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          gh release create ${{ steps.get_version.outputs.version }} --title "${{ steps.get_version.outputs.version }}" --generate-notes
-
-      - name: Delete source branch
-        run: |
-          git push origin --delete ${{ steps.get_version.outputs.branch }}
-
       - name: Set up Python 3.12
         uses: actions/setup-python@v5
         with:
@@ -61,9 +51,12 @@ jobs:
           pip install build
           python -m build
 
-      - name: Publish GitHub Release
-        uses: softprops/action-gh-release@v2
-        with:
-          files: |
-            dist/*.whl
-          generate_release_notes: true
+      - name: Create GitHub Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create ${{ steps.get_version.outputs.version }} dist/*.whl --title "${{ steps.get_version.outputs.version }}" --generate-notes
+
+      - name: Delete source branch
+        run: |
+          git push origin --delete ${{ steps.get_version.outputs.branch }}
