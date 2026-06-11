@@ -1,14 +1,18 @@
-name: CI / branches
+name: CI / develop
 
 on:
   push:
-    branches: [ "develop" ]
+    branches: [ "v*-rc", "v*-fix"]
   pull_request:
-    branches: [ "develop" ]
+    branches: [ "v*-rc", "v*-fix"]
+
+permissions:
+  contents: write
 
 jobs:
   code-check:
     runs-on: ubuntu-latest
+
     steps:
       - uses: actions/checkout@v4
 
