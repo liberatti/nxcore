@@ -23,12 +23,13 @@ jobs:
         id: get_version
         run: |
           BRANCH_NAME="${{ github.event.pull_request.head.ref }}"
-          if [[ "$BRANCH_NAME" =~ ^v(.*)-rc$ ]]; then
+          if [[ "$BRANCH_NAME" =~ ^v(.*)-(rc|fix)$ ]]; then
             VERSION="${BRANCH_NAME%-rc}"
+            VERSION="${VERSION%-fix}"
             echo "version=$VERSION" >> $GITHUB_OUTPUT
             echo "branch=$BRANCH_NAME" >> $GITHUB_OUTPUT
           else
-            echo "Branch $BRANCH_NAME does not match v*-rc pattern"
+            echo "Branch $BRANCH_NAME does not match v*-rc or v*-fix pattern"
             exit 1
           fi
 
