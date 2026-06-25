@@ -13,7 +13,7 @@ from datetime import datetime
 from bson import ObjectId
 
 import nxcore.config as base_config
-from nxcore.middleware.logging import logger
+from nxcore.middleware.logging_manager import logger
 
 
 def clear_directory(directory_path):
@@ -65,9 +65,8 @@ def get_server_id():
     return server_
 
 
-def deep_date_str(obj):
-    """
-    Recursively converts all datetime objects in a dictionary or list to ISO format strings.
+def deep_date_str(obj: dict | list) -> dict | list:
+    """Recursively converts all datetime objects in a dictionary or list to ISO format strings.
 
     Args:
         obj (dict or list): The object to process.
@@ -76,15 +75,22 @@ def deep_date_str(obj):
         dict or list: A deep copy of the object with formatted dates.
     """
     _obj = deepcopy(obj)
-    for key, value in _obj.items():
-        if isinstance(value, datetime):
-            _obj[key] = value.isoformat()
-        elif isinstance(value, dict):
-            deep_date_str(value)
-        elif isinstance(value, list):
-            for item in value:
-                if isinstance(item, dict):
-                    deep_date_str(item)
+
+    def _process(item):
+        if isinstance(item, dict):
+            for k, v in item.items():
+                if isinstance(v, datetime):
+                    item[k] = v.isoformat()
+                else:
+                    _process(v)
+        elif isinstance(item, list):
+            for idx, val in enumerate(item):
+                if isinstance(val, datetime):
+                    item[idx] = val.isoformat()
+                else:
+                    _process(val)
+
+    _process(_obj)
     return _obj
 
 

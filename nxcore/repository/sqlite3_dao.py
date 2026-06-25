@@ -1,29 +1,28 @@
 import sqlite3
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 from marshmallow import Schema, fields
 
-from nxcore.middleware.logging import logger
+from nxcore.middleware.logging_manager import logger
 from nxcore.repository.schemas.page_meta_schema import PageMetaSchema
 
 
 class SQLite3DAO:
-    """
-    Data Access Object for SQLite3.
+    """Data Access Object for SQLite3.
 
     Provides a standard interface for CRUD operations on a SQLite3 table
     with support for Marshmallow schemas and pagination.
     """
 
     def __init__(
-            self,
-            db_path: str,
-            table_name: str,
-            schema: type[Schema] | None = None,
-            conn: sqlite3.Connection | None = None,
-            auto_commit: bool = True,
+        self,
+        db_path: str,
+        table_name: str,
+        schema: Optional[type[Schema]] = None,
+        conn: Optional[sqlite3.Connection] = None,
+        auto_commit: bool = True,
     ):
-        """
-        Initializes the SQLite3DAO with connection details and optional schema.
+        """Initializes the SQLite3DAO with connection details and optional schema.
 
         Args:
             db_path (str): Path to the directory containing the SQLite database.
@@ -64,15 +63,19 @@ class SQLite3DAO:
             self.conn.row_factory = sqlite3.Row
 
     def is_connected(self) -> bool:
-        """Checks if the connection to SQLite3 is established."""
+        """Checks if the connection to SQLite3 is established.
+
+        Returns:
+            bool: True if connected, False otherwise.
+        """
         return self.conn is not None
 
-    def __enter__(self):
+    def __enter__(self) -> "SQLite3DAO":
         """Context manager entry point."""
         self.connect()
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
         """Context manager exit point with automatic rollback on error."""
         try:
             if exc_type is not None:
@@ -82,26 +85,24 @@ class SQLite3DAO:
         finally:
             self.conn.close()
 
-    def commit(self):
+    def commit(self) -> None:
         """Commits the current transaction."""
         logger.debug(f"[{self.auto_commit}] commit")
         self.conn.commit()
 
-    def to_dict(self, row):
-        """
-        Post-processing hook for rows fetched from the database.
+    def to_dict(self, row: Any) -> Optional[Dict[str, Any]]:
+        """Post-processing hook for rows fetched from the database.
 
         Args:
             row (sqlite3.Row): The raw row from the database.
 
         Returns:
-            dict: The processed dictionary.
+            dict or None: The processed dictionary.
         """
         return dict(row) if row else row
 
-    def from_dict(self, vo):
-        """
-        Pre-processing hook for dictionaries before database operations.
+    def from_dict(self, vo: Dict[str, Any]) -> Dict[str, Any]:
+        """Pre-processing hook for dictionaries before database operations.
 
         Args:
             vo (dict): The dictionary to process.
@@ -111,9 +112,8 @@ class SQLite3DAO:
         """
         return vo
 
-    def json_load(self, json_data, many=False):
-        """
-        Loads and validates JSON data using the assigned schema.
+    def json_load(self, json_data: Union[Dict[str, Any], List[Dict[str, Any]]], many: bool = False) -> Any:
+        """Loads and validates JSON data using the assigned schema.
 
         Args:
             json_data (dict|list): The JSON data to load.
@@ -124,9 +124,8 @@ class SQLite3DAO:
         """
         return self.schema.load(json_data, many=many) if self.schema else json_data
 
-    def json_dump(self, row, many=False):
-        """
-        Serializes an object using the assigned schema.
+    def json_dump(self, row: Any, many: bool = False) -> Any:
+        """Serializes an object using the assigned schema.
 
         Args:
             row (object): The object to serialize.
@@ -137,9 +136,8 @@ class SQLite3DAO:
         """
         return self.schema.dump(row, many=many) if self.schema else row
 
-    def _interpolate_sql(self, sql, params):
-        """
-        Interpolates SQL with parameters for debugging purposes.
+    def _interpolate_sql(self, sql: str, params: Union[Tuple[Any, ...], List[Any]]) -> str:
+        """Interpolates SQL with parameters for debugging purposes.
 
         Args:
             sql (str): SQL query with placeholders.
@@ -156,9 +154,8 @@ class SQLite3DAO:
         except Exception as e:
             return f"{sql} | PARAMS: {params} | {e}"
 
-    def _query(self, sql, params=(), fetch=False):
-        """
-        Executes a SQL query.
+    def _query(self, sql: str, params: Union[Tuple[Any, ...], List[Any]] = (), fetch: bool = False) -> Optional[List[Dict[str, Any]]]:
+        """Executes a SQL query.
 
         Args:
             sql (str): SQL query to execute.
@@ -178,9 +175,8 @@ class SQLite3DAO:
         finally:
             cursor.close()
 
-    def get_all(self, pagination=None, order_by=None):
-        """
-        Retrieves all records with optional pagination and ordering.
+    def get_all(self, pagination: Optional[Dict[str, Any]] = None, order_by: Optional[str] = None) -> Dict[str, Any]:
+        """Retrieves all records with optional pagination and ordering.
 
         Args:
             pagination (dict, optional): Pagination parameters ('page', 'per_page').
@@ -215,9 +211,8 @@ class SQLite3DAO:
             "data": rows,
         }
 
-    def get_desc_by_id(self, _id):
-        """
-        Retrieves id and name for a specific record.
+    def get_desc_by_id(self, _id: Any) -> Optional[Dict[str, Any]]:
+        """Retrieves id and name for a specific record.
 
         Args:
             _id (any): The record identifier.
@@ -228,12 +223,12 @@ class SQLite3DAO:
         sql = f"SELECT _id,name FROM {self.table_name} WHERE _id = ?"
         rs = self._query(sql, (_id,), fetch=True)
         row = rs[0] if rs else None
-        self.to_dict(row)
+        if row:
+            self.to_dict(row)
         return row
 
-    def get_by_id(self, _id):
-        """
-        Retrieves a complete record by its ID.
+    def get_by_id(self, _id: Any) -> Optional[Dict[str, Any]]:
+        """Retrieves a complete record by its ID.
 
         Args:
             _id (any): The record identifier.
@@ -244,12 +239,12 @@ class SQLite3DAO:
         sql = f"SELECT * FROM {self.table_name} WHERE _id = ?"
         rs = self._query(sql, (_id,), fetch=True)
         row = rs[0] if rs else None
-        self.to_dict(row)
+        if row:
+            self.to_dict(row)
         return row
 
-    def get_by_name(self, name):
-        """
-        Retrieves a complete record by its name.
+    def get_by_name(self, name: str) -> Optional[Dict[str, Any]]:
+        """Retrieves a complete record by its name.
 
         Args:
             name (str): The name to search for.
@@ -260,12 +255,12 @@ class SQLite3DAO:
         sql = f"SELECT * FROM {self.table_name} WHERE name = ? LIMIT 1"
         rs = self._query(sql, (name,), fetch=True)
         row = rs[0] if rs else None
-        self.to_dict(row)
+        if row:
+            self.to_dict(row)
         return row
 
-    def update_by_id(self, _id, vo):
-        """
-        Updates a record by its ID.
+    def update_by_id(self, _id: Any, vo: Dict[str, Any]) -> bool:
+        """Updates a record by its ID.
 
         Args:
             _id (any): The record identifier.
@@ -283,9 +278,8 @@ class SQLite3DAO:
             self.commit()
         return True
 
-    def persist(self, vo):
-        """
-        Inserts a new record.
+    def persist(self, vo: Dict[str, Any]) -> Any:
+        """Inserts a new record.
 
         Args:
             vo (dict): Dictionary with record data.
@@ -308,9 +302,8 @@ class SQLite3DAO:
         finally:
             cursor.close()
 
-    def persist_many(self, arr):
-        """
-        Inserts multiple records.
+    def persist_many(self, arr: List[Dict[str, Any]]) -> Union[int, bool]:
+        """Inserts multiple records.
 
         Args:
             arr (list[dict]): List of dictionaries with record data.
@@ -340,9 +333,8 @@ class SQLite3DAO:
         finally:
             cursor.close()
 
-    def delete_by_id(self, _id):
-        """
-        Deletes a record by its ID.
+    def delete_by_id(self, _id: Any) -> bool:
+        """Deletes a record by its ID.
 
         Args:
             _id (any): The record identifier.
@@ -354,9 +346,8 @@ class SQLite3DAO:
         self._query(sql, (_id,))
         return True
 
-    def delete_all(self):
-        """
-        Deletes all records from the table.
+    def delete_all(self) -> bool:
+        """Deletes all records from the table.
 
         Returns:
             bool: True if operation completed successfully.
@@ -365,9 +356,8 @@ class SQLite3DAO:
         self._query(sql)
         return True
 
-    def ddl(self, sql):
-        """
-        Executes a DDL (Data Definition Language) statement.
+    def ddl(self, sql: str) -> None:
+        """Executes a DDL (Data Definition Language) statement.
 
         Args:
             sql (str): DDL statement to execute.
@@ -377,9 +367,8 @@ class SQLite3DAO:
         cursor.execute(sql)
         cursor.close()
 
-    def count_all(self, where_clause=None, params=None):
-        """
-        Count all records in the table with optional where clause
+    def count_all(self, where_clause: Optional[str] = None, params: Optional[Union[Tuple[Any, ...], List[Any]]] = None) -> int:
+        """Count all records in the table with optional where clause.
 
         Args:
             where_clause (str, optional): SQL WHERE clause. Defaults to None.

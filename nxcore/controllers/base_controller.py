@@ -1,16 +1,16 @@
 import traceback
 from functools import wraps
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import jwt
 from flask import jsonify, request, Response
 
 import nxcore.config as base_config
-from nxcore.middleware.jwt import jwt_get, jwt_decode
+from nxcore.middleware import JWTManager
 
 
-def get_pagination():
-    """
-    Extracts pagination parameters (size and page) from the request arguments.
+def get_pagination() -> Optional[Dict[str, int]]:
+    """Extracts pagination parameters (size and page) from the request arguments.
 
     Returns:
         dict or None: A dictionary containing 'per_page' and 'page' if both are present,
@@ -25,33 +25,48 @@ def get_pagination():
     return _pagination
 
 
-def has_any_authority(authorities=None, _internal=False):
-    """
-    Decorator to check if the user has any of the required authorities.
+def has_any_authority(
+    authorities: Optional[List[str]] = None, _internal: bool = False
+) -> Callable:
+    """Decorator to check if the user has any of the required authorities.
 
     Args:
         authorities (list, optional): List of required authority strings. Defaults to None.
         _internal (bool, optional): Whether to allow internal API key access. Defaults to False.
 
     Returns:
-        function: The decorated function or an error response (401/403).
+        Callable: The decorated function or an error response (401/403).
     """
-    def wrapper(fn):
+    def wrapper(fn: Callable) -> Callable:
         @wraps(fn)
-        def decorator(*args, **kwargs):
-            if not base_config.has("SECURITY_ENABLED") or not base_config.get(
-                    "SECURITY_ENABLED"
-            ):
+        def decorator(*args: Any, **kwargs: Any) -> Any:
+            from flask import current_app
+
+            security_enabled = True
+            if current_app and 'SECURITY_ENABLED' in current_app.config:
+                security_enabled = current_app.config['SECURITY_ENABLED']
+            else:
+                security_enabled = base_config.get("SECURITY_ENABLED", True)
+
+            if not security_enabled:
                 return fn(*args, **kwargs)
 
-            if _internal and base_config.has("API_KEY") and base_config.get("API_KEY"):
-                if base_config.get("API_KEY") == request.headers.get("x-api-key"):
+            if _internal:
+                api_key = None
+                if current_app and 'API_KEY' in current_app.config:
+                    api_key = current_app.config['API_KEY']
+                else:
+                    api_key = base_config.get("API_KEY")
+
+                if api_key and api_key == request.headers.get("x-api-key"):
                     return fn(*args, **kwargs)
+
             try:
-                token = jwt_get()
+                jwt_mgr = JWTManager.get_current_instance()
+                token = jwt_mgr.get_token_from_request()
                 if token:
-                    payload = jwt_decode(token)
-                    if any(a in payload.get("authorities", []) for a in authorities):
+                    payload = jwt_mgr.decode(token)
+                    if any(a in payload.get("authorities", []) for a in (authorities or [])):
                         return fn(*args, **kwargs)
             except jwt.ExpiredSignatureError:
                 return response_error_401(
@@ -66,9 +81,8 @@ def has_any_authority(authorities=None, _internal=False):
     return wrapper
 
 
-def response_error_404():
-    """
-    Returns a standard 404 Not Found JSON response.
+def response_error_404() -> Tuple[Response, int]:
+    """Returns a standard 404 Not Found JSON response.
 
     Returns:
         tuple: (JSON response, status code 200)
@@ -86,9 +100,10 @@ def response_error_404():
     )
 
 
-def response_error(msg="Bad Request", details="", code=400):
-    """
-    Returns a generic error JSON response.
+def response_error(
+    msg: str = "Bad Request", details: str = "", code: int = 400
+) -> Tuple[Response, int]:
+    """Returns a generic error JSON response.
 
     Args:
         msg (str): Error message. Defaults to "Bad Request".
@@ -112,9 +127,10 @@ def response_error(msg="Bad Request", details="", code=400):
     )
 
 
-def response_error_401(msg="Not authenticated", details=""):
-    """
-    Returns a standard 401 Unauthorized JSON response.
+def response_error_401(
+    msg: str = "Not authenticated", details: str = ""
+) -> Tuple[Response, int]:
+    """Returns a standard 401 Unauthorized JSON response.
 
     Args:
         msg (str): Error message. Defaults to "Not authenticated".
@@ -137,9 +153,8 @@ def response_error_401(msg="Not authenticated", details=""):
     )
 
 
-def response_error_403(message="Not authorized"):
-    """
-    Returns a standard 403 Forbidden JSON response.
+def response_error_403(message: str = "Not authorized") -> Tuple[Response, int]:
+    """Returns a standard 403 Forbidden JSON response.
 
     Args:
         message (str): Error message. Defaults to "Not authorized".
@@ -160,9 +175,10 @@ def response_error_403(message="Not authorized"):
     )
 
 
-def response_error_500(msg, code=500, details=""):
-    """
-    Returns a standard 500 Internal Server Error JSON response.
+def response_error_500(
+    msg: str, code: int = 500, details: str = ""
+) -> Tuple[Response, int]:
+    """Returns a standard 500 Internal Server Error JSON response.
 
     Args:
         msg (str): Error message.
@@ -186,12 +202,11 @@ def response_error_500(msg, code=500, details=""):
     )
 
 
-def response_data_removed(desc):
-    """
-    Returns a JSON response indicating a record was removed.
+def response_data_removed(desc: Union[str, int]) -> Tuple[Response, int]:
+    """Returns a JSON response indicating a record was removed.
 
     Args:
-        desc (str): Description or ID of the removed record.
+        desc (str or int): Description or ID of the removed record.
 
     Returns:
         tuple: (JSON response, status code 200)
@@ -202,9 +217,8 @@ def response_data_removed(desc):
     )
 
 
-def response_ok(desc):
-    """
-    Returns a generic successful JSON response.
+def response_ok(desc: str) -> Tuple[Response, int]:
+    """Returns a generic successful JSON response.
 
     Args:
         desc (str): Message to include in the response.
@@ -218,9 +232,8 @@ def response_ok(desc):
     )
 
 
-def response_error_parse(err):
-    """
-    Returns a 400 Bad Request JSON response for validation errors.
+def response_error_parse(err: Any) -> Tuple[Response, int]:
+    """Returns a 400 Bad Request JSON response for validation errors.
 
     Args:
         err (marshmallow.exceptions.ValidationError): The validation error object.
@@ -236,16 +249,19 @@ def response_error_parse(err):
                 "code": 400,
                 "url": request.url,
                 "method": request.method,
-                # "valid_data": err.valid_data,
             }
         ),
         400,
     )
 
 
-def response_data_list(o, schema=None, headers=None, status_code=200):
-    """
-    Returns a JSON response containing a list of data.
+def response_data_list(
+    o: List[Any],
+    schema: Optional[Any] = None,
+    headers: Optional[Dict[str, str]] = None,
+    status_code: int = 200,
+) -> Tuple[Response, int, Dict[str, str]]:
+    """Returns a JSON response containing a list of data.
 
     Args:
         o (list): The list of data to return.
@@ -262,9 +278,13 @@ def response_data_list(o, schema=None, headers=None, status_code=200):
         return jsonify(o), status_code, (headers or {})
 
 
-def response_data(o, schema=None, headers=None, status_code=200):
-    """
-    Returns a JSON response containing a single data object.
+def response_data(
+    o: Any,
+    schema: Optional[Any] = None,
+    headers: Optional[Dict[str, str]] = None,
+    status_code: int = 200,
+) -> Tuple[Response, int, Dict[str, str]]:
+    """Returns a JSON response containing a single data object.
 
     Args:
         o (object): The data object to return.
@@ -281,11 +301,14 @@ def response_data(o, schema=None, headers=None, status_code=200):
         return jsonify(o), status_code, (headers or {})
 
 
-def response_redirect(url, status_code=302):
-    """
-    Redirect to a specific URL
-    :param url: The URL to redirect to
-    :param status_code: HTTP status code (default: 302 - Found)
-    :return: Response object with redirect
+def response_redirect(url: str, status_code: int = 302) -> Response:
+    """Redirect to a specific URL.
+
+    Args:
+        url (str): The URL to redirect to.
+        status_code (int): HTTP status code. Defaults to 302.
+
+    Returns:
+        Response: Response object with redirect.
     """
     return Response(response=None, status=status_code, headers={"Location": url})

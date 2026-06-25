@@ -66,6 +66,14 @@ with UserDAO(mongo_url) as dao:
 - `nxcore/common_utils.py`: General purpose utility functions.
 - `nxcore/config.py`: Centralized configuration management.
 
+## 🧪 Testing
+
+To run the project tests, execute the `test.py` script from the root directory:
+
+```bash
+python3 test.py
+```
+
 ## 🤝 Contribution
 
 This is an internal library. For contributions, please follow the internal development workflow:

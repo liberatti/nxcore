@@ -1,16 +1,15 @@
+from typing import Any
 from minio import Minio
 
 
 class MinioTool:
-    """
-    Utility class for interacting with Minio (S3 compatible storage).
+    """Utility class for interacting with Minio (S3 compatible storage).
 
     Handles file uploads, downloads, deletions, and listing within a specific bucket.
     """
 
-    def __init__(self, url, access_key, secret_key, bucket_name: str = "capivara"):
-        """
-        Initializes the MinioTool with connection credentials and bucket name.
+    def __init__(self, url: str, access_key: str, secret_key: str, bucket_name: str = "capivara"):
+        """Initializes the MinioTool with connection credentials and bucket name.
 
         Args:
             url (str): Minio server URL.
@@ -25,9 +24,8 @@ class MinioTool:
             secret_key=secret_key,
         )
 
-    def upload_file(self, file_path: str, file_name: str, content_type: str = "application/octet-stream"):
-        """
-        Uploads a file to the Minio bucket.
+    def upload_file(self, file_path: str, file_name: str, content_type: str = "application/octet-stream") -> None:
+        """Uploads a file to the Minio bucket.
 
         Args:
             file_path (str): Local path to the file.
@@ -36,9 +34,8 @@ class MinioTool:
         """
         self.minio_client.fput_object(self.bucket_name, file_name, file_path, content_type=content_type)
 
-    def download_file(self, file_name: str, file_path: str, content_type: str = "application/octet-stream"):
-        """
-        Downloads a file from the Minio bucket.
+    def download_file(self, file_name: str, file_path: str, content_type: str = "application/octet-stream") -> None:
+        """Downloads a file from the Minio bucket.
 
         Args:
             file_name (str): Name of the file in Minio.
@@ -47,30 +44,27 @@ class MinioTool:
         """
         self.minio_client.fget_object(self.bucket_name, file_name, file_path, content_type=content_type)
 
-    def delete_file(self, file_name: str):
-        """
-        Deletes a file from the Minio bucket.
+    def delete_file(self, file_name: str) -> None:
+        """Deletes a file from the Minio bucket.
 
         Args:
             file_name (str): Name of the file to delete.
         """
         self.minio_client.remove_object(self.bucket_name, file_name)
 
-    def list_files(self, prefix: str = ""):
-        """
-        Lists files in the Minio bucket with an optional prefix.
+    def list_files(self, prefix: str = "") -> Any:
+        """Lists files in the Minio bucket with an optional prefix.
 
         Args:
             prefix (str, optional): Filter files by prefix. Defaults to "".
 
         Returns:
-            list: Iterable of objects in the bucket.
+            Any: Iterable of objects in the bucket.
         """
         return self.minio_client.list_objects(self.bucket_name, prefix=prefix)
 
-    def get_file_url(self, file_name: str):
-        """
-        Generates a presigned URL for a file in the Minio bucket.
+    def get_file_url(self, file_name: str) -> str:
+        """Generates a presigned URL for a file in the Minio bucket.
 
         Args:
             file_name (str): Name of the file.
@@ -78,4 +72,4 @@ class MinioTool:
         Returns:
             str: Presigned URL for the file.
         """
-        return self.minio_client.presigned_get_object(self.bucket_name, file_name)
+        return str(self.minio_client.presigned_get_object(self.bucket_name, file_name))

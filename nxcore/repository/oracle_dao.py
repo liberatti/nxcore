@@ -1,51 +1,48 @@
-import pymysql
+from typing import Any, Dict, List, Optional, Tuple, Union
+
+import cx_Oracle
 from marshmallow import Schema, fields
 
-from nxcore.middleware.logging import logger
+from nxcore.middleware.logging_manager import logger
 from nxcore.repository.schemas.page_meta_schema import PageMetaSchema
 
 
-class MySQLDAO:
-    """
-    Data Access Object for MySQL.
+class OracleDAO:
+    """Data Access Object for Oracle.
 
-    Provides a standard interface for CRUD operations on a MySQL table
+    Provides a standard interface for CRUD operations on an Oracle table
     with support for Marshmallow schemas and pagination.
     """
 
     def __init__(
-            self, host, port, user, password, database, table_name, schema=None, conn=None
+        self,
+        host: str,
+        port: int,
+        user: str,
+        password: str,
+        service: str,
+        table_name: str,
+        schema: Optional[type[Schema]] = None,
+        config: Optional[Dict[str, Any]] = None,
     ):
-        """
-        Initializes the MySQLDAO with connection details and optional schema.
+        """Initializes the OracleDAO with connection details and optional schema.
 
         Args:
-            host (str): MySQL host address.
-            port (int): MySQL port number.
-            user (str): MySQL username.
-            password (str): MySQL password.
-            database (str): MySQL database name.
+            host (str): Oracle host address.
+            port (int): Oracle port number.
+            user (str): Oracle username.
+            password (str): Oracle password.
+            service (str): Oracle service name.
             table_name (str): Name of the table to operate on.
             schema (type[Schema], optional): Marshmallow schema for serialization. Defaults to None.
-            conn (pymysql.connections.Connection, optional): Existing connection. Defaults to None.
+            config (dict, optional): Configuration flag to trigger connection. Defaults to None.
         """
         self.table_name = table_name
         self.schema = schema() if schema else None
         self.pageSchema = None
-        self.conn = (
-            conn
-            if conn
-            else pymysql.connect(
-                host=host,
-                user=user,
-                password=password,
-                database=database,
-                port=port,
-                cursorclass=pymysql.cursors.DictCursor,
-                connect_timeout=300,
-                autocommit=True,
-            )
-        )
+        if config:
+            dsn = cx_Oracle.makedsn(host, port, service_name=service)
+            self.conn = cx_Oracle.connect(user, password, dsn)
 
         if schema:
             page_class = type(
@@ -58,9 +55,8 @@ class MySQLDAO:
             )
             self.pageSchema = page_class()
 
-    def to_dict(self, row):
-        """
-        Post-processing hook for rows fetched from the database.
+    def to_dict(self, row: Any) -> Any:
+        """Post-processing hook for rows fetched from the database.
 
         Args:
             row (dict): The raw dictionary from the database.
@@ -70,9 +66,8 @@ class MySQLDAO:
         """
         return row
 
-    def from_dict(self, row):
-        """
-        Pre-processing hook for dictionaries before database operations.
+    def from_dict(self, row: Dict[str, Any]) -> Dict[str, Any]:
+        """Pre-processing hook for dictionaries before database operations.
 
         Args:
             row (dict): The dictionary to process.
@@ -82,9 +77,8 @@ class MySQLDAO:
         """
         return row
 
-    def json_load(self, json_data, many=False):
-        """
-        Loads and validates JSON data using the assigned schema.
+    def json_load(self, json_data: Union[Dict[str, Any], List[Dict[str, Any]]], many: bool = False) -> Any:
+        """Loads and validates JSON data using the assigned schema.
 
         Args:
             json_data (dict|list): The JSON data to load.
@@ -95,9 +89,8 @@ class MySQLDAO:
         """
         return self.schema.load(json_data, many=many) if self.schema else json_data
 
-    def json_dump(self, row, many=False):
-        """
-        Serializes an object using the assigned schema.
+    def json_dump(self, row: Any, many: bool = False) -> Any:
+        """Serializes an object using the assigned schema.
 
         Args:
             row (object): The object to serialize.
@@ -108,9 +101,8 @@ class MySQLDAO:
         """
         return self.schema.dump(row, many=many) if self.schema else row
 
-    def _interpolate_sql(self, sql, params):
-        """
-        Interpolates SQL with parameters for debugging purposes.
+    def _interpolate_sql(self, sql: str, params: Union[Tuple[Any, ...], List[Any], None]) -> str:
+        """Interpolates SQL with parameters for debugging purposes.
 
         Args:
             sql (str): SQL query with placeholders.
@@ -127,9 +119,8 @@ class MySQLDAO:
         except Exception:
             return f"{sql} | PARAMS: {params}"
 
-    def _query(self, sql, params=None, fetch=False):
-        """
-        Executes a SQL query.
+    def _query(self, sql: str, params: Optional[Union[Tuple[Any, ...], List[Any]]] = None, fetch: bool = False) -> Optional[List[Dict[str, Any]]]:
+        """Executes a SQL query.
 
         Args:
             sql (str): SQL query to execute.
@@ -139,21 +130,26 @@ class MySQLDAO:
         Returns:
             list[dict]|None: List of rows if fetch is True, otherwise None.
         """
-        cursor = self.conn.cursor(pymysql.cursors.DictCursor)
+        cursor = self.conn.cursor()
         logger.debug(self._interpolate_sql(sql, params))
         try:
-            cursor.execute(sql, params)
+            cursor.execute(sql, params or ())
             if fetch:
-                return cursor.fetchall()
+                columns = [col[0] for col in cursor.description]
+                return [dict(zip(columns, row)) for row in cursor.fetchall()]
         finally:
             cursor.close()
 
-    def __del__(self):
-        self.conn.close()
+    def __del__(self) -> None:
+        """Destructor that closes the Oracle connection."""
+        if hasattr(self, "conn"):
+            try:
+                self.conn.close()
+            except Exception:
+                pass
 
-    def get_all(self, pagination=None, order_by=None):
-        """
-        Retrieves all records with optional pagination and ordering.
+    def get_all(self, pagination: Optional[Dict[str, Any]] = None, order_by: Optional[str] = None) -> Dict[str, Any]:
+        """Retrieves all records with optional pagination and ordering.
 
         Args:
             pagination (dict, optional): Pagination parameters ('page', 'per_page').
@@ -164,16 +160,18 @@ class MySQLDAO:
         """
         sql = f"SELECT * FROM {self.table_name}"
         if order_by:
-            sql += f" order by {order_by}"
+            sql += f" ORDER BY {order_by}"
         count_sql = f"SELECT COUNT(*) AS total FROM {self.table_name}"
+
+        count_result = self._query(count_sql, fetch=True)
+        total = count_result[0]["TOTAL"] if count_result else 0
         rows = []
-        total = self._query(count_sql, fetch=True)[0]["total"]
 
         if pagination:
             page = pagination.get("page", 1)
             per_page = pagination.get("per_page", 10)
             offset = (page - 1) * per_page
-            sql += f" LIMIT {per_page} OFFSET {offset}"
+            sql += f" OFFSET {offset} ROWS FETCH NEXT {per_page} ROWS ONLY"
             pagination["total_elements"] = total
         else:
             pagination = {"total_elements": total, "page": 1, "per_page": total}
@@ -188,9 +186,8 @@ class MySQLDAO:
             "data": rows,
         }
 
-    def get_desc_by_id(self, id):
-        """
-        Retrieves id and name for a specific record.
+    def get_desc_by_id(self, id: Any) -> Optional[Dict[str, Any]]:
+        """Retrieves id and name for a specific record.
 
         Args:
             id (any): The record identifier.
@@ -198,15 +195,15 @@ class MySQLDAO:
         Returns:
             dict|None: Row containing id and name if found, else None.
         """
-        sql = f"SELECT id,name FROM {self.table_name} WHERE id = %s"
+        sql = f"SELECT id, name FROM {self.table_name} WHERE id = :1"
         rs = self._query(sql, (id,), fetch=True)
         row = rs[0] if rs else None
-        self.to_dict(row)
+        if row:
+            self.to_dict(row)
         return row
 
-    def get_by_id(self, id):
-        """
-        Retrieves a complete record by its ID.
+    def get_by_id(self, id: Any) -> Optional[Dict[str, Any]]:
+        """Retrieves a complete record by its ID.
 
         Args:
             id (any): The record identifier.
@@ -214,15 +211,15 @@ class MySQLDAO:
         Returns:
             dict|None: The complete row if found, else None.
         """
-        sql = f"SELECT * FROM {self.table_name} WHERE id = %s"
+        sql = f"SELECT * FROM {self.table_name} WHERE id = :1"
         rs = self._query(sql, (id,), fetch=True)
         row = rs[0] if rs else None
-        self.to_dict(row)
+        if row:
+            self.to_dict(row)
         return row
 
-    def get_by_name(self, name):
-        """
-        Retrieves a complete record by its name.
+    def get_by_name(self, name: str) -> Optional[Dict[str, Any]]:
+        """Retrieves a complete record by its name.
 
         Args:
             name (str): The name to search for.
@@ -230,15 +227,15 @@ class MySQLDAO:
         Returns:
             dict|None: The complete row if found, else None.
         """
-        sql = f"SELECT * FROM {self.table_name} WHERE name = %s LIMIT 1"
+        sql = f"SELECT * FROM {self.table_name} WHERE name = :1 AND ROWNUM = 1"
         rs = self._query(sql, (name,), fetch=True)
         row = rs[0] if rs else None
-        self.to_dict(row)
+        if row:
+            self.to_dict(row)
         return row
 
-    def update_by_id(self, id, vo):
-        """
-        Updates a record by its ID.
+    def update_by_id(self, id: Any, vo: Dict[str, Any]) -> bool:
+        """Updates a record by its ID.
 
         Args:
             id (any): The record identifier.
@@ -248,16 +245,15 @@ class MySQLDAO:
             bool: True if operation completed successfully.
         """
         self.from_dict(vo)
-        keys = ", ".join([f"{k} = %s" for k in vo.keys()])
-        sql = f"UPDATE {self.table_name} SET {keys} WHERE id = %s"
+        keys = ", ".join([f"{k} = :{i + 1}" for i, k in enumerate(vo.keys())])
+        sql = f"UPDATE {self.table_name} SET {keys} WHERE id = :{len(vo) + 1}"
         values = list(vo.values()) + [id]
         self._query(sql, values)
         self.conn.commit()
         return True
 
-    def persist(self, vo):
-        """
-        Inserts a new record.
+    def persist(self, vo: Dict[str, Any]) -> Any:
+        """Inserts a new record.
 
         Args:
             vo (dict): Dictionary with record data.
@@ -267,7 +263,7 @@ class MySQLDAO:
         """
         self.from_dict(vo)
         keys = ", ".join(vo.keys())
-        values_placeholder = ", ".join(["%s"] * len(vo))
+        values_placeholder = ", ".join([f":{i + 1}" for i in range(len(vo))])
         sql = f"INSERT INTO {self.table_name} ({keys}) VALUES ({values_placeholder})"
         values = list(vo.values())
 
@@ -280,9 +276,8 @@ class MySQLDAO:
         finally:
             cursor.close()
 
-    def persist_many(self, arr):
-        """
-        Inserts multiple records.
+    def persist_many(self, arr: List[Dict[str, Any]]) -> bool:
+        """Inserts multiple records.
 
         Args:
             arr (list[dict]): List of dictionaries with record data.
@@ -293,16 +288,15 @@ class MySQLDAO:
         if not arr:
             return False
         keys = ", ".join(arr[0].keys())
-        values_placeholder = ", ".join(["%s"] * len(arr[0]))
+        values_placeholder = ", ".join([f":{i + 1}" for i in range(len(arr[0]))])
         sql = f"INSERT INTO {self.table_name} ({keys}) VALUES ({values_placeholder})"
         for item in arr:
             self._query(sql, tuple(item.values()))
         self.conn.commit()
         return True
 
-    def delete_by_id(self, id):
-        """
-        Deletes a record by its ID.
+    def delete_by_id(self, id: Any) -> bool:
+        """Deletes a record by its ID.
 
         Args:
             id (any): The record identifier.
@@ -310,35 +304,18 @@ class MySQLDAO:
         Returns:
             bool: True if operation completed successfully.
         """
-        sql = f"DELETE FROM {self.table_name} WHERE id = %s"
+        sql = f"DELETE FROM {self.table_name} WHERE id = :1"
         self._query(sql, (id,))
+        self.conn.commit()
         return True
 
-    def delete_all(self):
-        """
-        Deletes all records from the table.
+    def delete_all(self) -> bool:
+        """Deletes all records from the table.
 
         Returns:
             bool: True if operation completed successfully.
         """
         sql = f"DELETE FROM {self.table_name}"
         self._query(sql)
+        self.conn.commit()
         return True
-
-    def count_all(self, where_clause=None, params=None):
-        """
-        Count all records in the table with optional where clause
-
-        Args:
-            where_clause (str, optional): SQL WHERE clause. Defaults to None.
-            params (tuple, optional): Parameters for the WHERE clause. Defaults to None.
-
-        Returns:
-            int: Total count of records
-        """
-        sql = f"SELECT COUNT(*) AS total FROM {self.table_name}"
-        if where_clause:
-            sql += f" WHERE {where_clause}"
-        logger.debug(sql)
-        result = self._query(sql, params, fetch=True)
-        return result[0]["total"] if result else 0
