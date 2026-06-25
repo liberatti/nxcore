@@ -1,20 +1,18 @@
 import pytz
 
 _config = {
-    'DATETIME_FMT': "%Y-%m-%dT%H:%M:%S.%fZ",
-    'TZ': pytz.timezone("UTC"),
-    'SECURITY_ENABLED': True,
-    'JWT_AUD': 'app',
-    'JWT_SECRET_KEY': 'dev',
-    'JWT_EXPIRE': 1800,
-    'LOGLEVEL': 'INFO',
-    'CORE_VERSION': 'v0.0.2'
+    "DATETIME_FMT": "%Y-%m-%dT%H:%M:%S.%fZ",
+    "TZ": pytz.timezone("UTC"),
+    "SECURITY_ENABLED": True,
+    "JWT_AUD": "app",
+    "JWT_SECRET_KEY": "dev",
+    "JWT_EXPIRE": 1800,
+    "LOGLEVEL": "INFO",
 }
 
 
-def init(overrides: dict = None):
-    """
-    Initializes the configuration with optional overrides.
+def init(overrides: dict[str, any] | None = None) -> None:
+    """Initializes the configuration with optional overrides.
 
     Args:
         overrides (dict, optional): A dictionary of configuration keys and values to override.
@@ -23,23 +21,21 @@ def init(overrides: dict = None):
         _config.update(overrides)
 
 
-def get(key, default=None):
-    """
-    Retrieves a configuration value by its key.
+def get(key: str, default: any = None) -> any:
+    """Retrieves a configuration value by its key.
 
     Args:
         key (str): The configuration key.
-        default (object, optional): The default value to return if the key is not found.
+        default (any, optional): The default value to return if the key is not found.
 
     Returns:
-        object: The configuration value or the default.
+        any: The configuration value or the default.
     """
     return _config.get(key, default)
 
 
-def has(keys):
-    """
-    Checks if a configuration key exists.
+def has(keys: str) -> bool:
+    """Checks if a configuration key exists.
 
     Args:
         keys (str): The configuration key to check.

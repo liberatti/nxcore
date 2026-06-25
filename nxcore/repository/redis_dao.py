@@ -1,18 +1,18 @@
 import json
+from typing import Any, Dict, List, Optional
+
 import redis
 
 
 class RedisDAO:
-    """
-    Data Access Object for Redis.
+    """Data Access Object for Redis.
 
     Provides a simple interface for persisting and retrieving JSON data
     in Redis with support for key prefix scanning.
     """
 
-    def __init__(self, host="127.0.0.1", port=6379, password=None, db=0):
-        """
-        Initializes the RedisDAO with connection parameters.
+    def __init__(self, host: str = "127.0.0.1", port: int = 6379, password: Optional[str] = None, db: int = 0):
+        """Initializes the RedisDAO with connection parameters.
 
         Args:
             host (str, optional): Redis host address. Defaults to "127.0.0.1".
@@ -26,7 +26,7 @@ class RedisDAO:
         self.db = db
         self.conn = None
 
-    def connect(self):
+    def connect(self) -> None:
         """Establishes connection to the Redis server."""
         if not self.conn:
             self.conn = redis.Redis(
@@ -38,20 +38,24 @@ class RedisDAO:
             )
             self.conn.ping()
 
-    def _ensure_connection(self):
+    def _ensure_connection(self) -> None:
         """Ensures that the Redis connection is active."""
         if not self.is_connected():
             self.connect()
 
-    def is_connected(self):
+    def is_connected(self) -> bool:
+        """Checks if the connection to Redis is active.
+
+        Returns:
+            bool: True if connected and responsive, False otherwise.
+        """
         try:
-            return self.conn and self.conn.ping()
+            return bool(self.conn and self.conn.ping())
         except (redis.ConnectionError, AttributeError):
             return False
 
-    def persist(self, key, value, expire=None):
-        """
-        Persists a value in Redis.
+    def persist(self, key: str, value: Any, expire: Optional[int] = None) -> None:
+        """Persists a value in Redis.
 
         Args:
             key (str): The key under which to store the value.
@@ -62,9 +66,8 @@ class RedisDAO:
         payload = json.dumps(value)
         self.conn.set(key, payload, ex=expire)
 
-    def get_by_id(self, key):
-        """
-        Retrieves a value from Redis by its key.
+    def get_by_id(self, key: str) -> Optional[Any]:
+        """Retrieves a value from Redis by its key.
 
         Args:
             key (str): The key to retrieve.
@@ -76,9 +79,8 @@ class RedisDAO:
         value = self.conn.get(key)
         return json.loads(value) if value else None
 
-    def delete(self, key):
-        """
-        Deletes a key from Redis.
+    def delete(self, key: str) -> int:
+        """Deletes a key from Redis.
 
         Args:
             key (str): The key to delete.
@@ -89,9 +91,8 @@ class RedisDAO:
         self._ensure_connection()
         return self.conn.delete(key)
 
-    def get_keys_by_prefix(self, pattern="*"):
-        """
-        Retrieves all keys matching a specific pattern.
+    def get_keys_by_prefix(self, pattern: str = "*") -> List[str]:
+        """Retrieves all keys matching a specific pattern.
 
         Args:
             pattern (str, optional): The pattern to match. Defaults to "*".
@@ -102,9 +103,8 @@ class RedisDAO:
         self._ensure_connection()
         return list(self.conn.scan_iter(match=pattern))
 
-    def get_items_by_prefix(self, pattern="*"):
-        """
-        Retrieves all items (keys and values) matching a pattern.
+    def get_items_by_prefix(self, pattern: str = "*") -> List[Dict[str, Any]]:
+        """Retrieves all items (keys and values) matching a pattern.
 
         Args:
             pattern (str, optional): The pattern to match. Defaults to "*".
@@ -132,12 +132,15 @@ class RedisDAO:
 
         return items
 
-    def __enter__(self):
+    def __enter__(self) -> "RedisDAO":
         """Context manager entry point."""
         self.connect()
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
         """Context manager exit point."""
         if self.conn:
-            self.conn.close()
+            try:
+                self.conn.close()
+            except Exception:
+                pass

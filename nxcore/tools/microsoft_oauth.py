@@ -1,10 +1,14 @@
+from typing import Any, Dict, List, Optional
+
 import requests
 
-from nxcore.middleware.logging import logger
+from nxcore.middleware.logging_manager import logger
 
 
 class MicrosoftOAuth:
-    SCOPE = [
+    """OAuth2 handler for Microsoft authentication."""
+
+    SCOPE: List[str] = [
         "https://graph.microsoft.com/Chat.Read.All",
         "https://graph.microsoft.com/Contacts.Read",
         "https://graph.microsoft.com/User.Read.All",
@@ -13,29 +17,60 @@ class MicrosoftOAuth:
         "offline_access",
     ]
 
-    def __init__(self, client_id, client_secret, redirect_uri):
+    def __init__(self, client_id: str, client_secret: str, redirect_uri: str):
+        """Initializes MicrosoftOAuth client credentials.
+
+        Args:
+            client_id (str): Microsoft Client ID.
+            client_secret (str): Microsoft Client Secret.
+            redirect_uri (str): Authorized redirect URI.
+        """
         self.__client_id = client_id
         self.__client_secret = client_secret
         self.__redirect_uri = redirect_uri
 
-        self.authority = "https://login.microsoftonline.com/common"
-        self.scope = MicrosoftOAuth.SCOPE
+        self.authority: str = "https://login.microsoftonline.com/common"
+        self.scope: List[str] = MicrosoftOAuth.SCOPE
 
-    def tokeninfo(self, access_token):
+    def tokeninfo(self, access_token: str) -> Dict[str, Any]:
+        """Retrieves user profile metadata from Microsoft Graph.
+
+        Args:
+            access_token (str): Microsoft Graph access token.
+
+        Returns:
+            dict: The response payload.
+        """
         user_info_url = "https://graph.microsoft.com/v1.0/me"
         user_info_response = requests.get(
             user_info_url, headers={"Authorization": f"Bearer {access_token}"}
         )
         return user_info_response.json()
 
-    def user_info(self, access_token):
+    def user_info(self, access_token: str) -> Dict[str, Any]:
+        """Fetches profile information for the authenticated user.
+
+        Args:
+            access_token (str): Microsoft Graph access token.
+
+        Returns:
+            dict: User profile info dictionary.
+        """
         user_info_url = "https://graph.microsoft.com/v1.0/me"
         user_info_response = requests.get(
             user_info_url, headers={"Authorization": f"Bearer {access_token}"}
         )
         return user_info_response.json()
 
-    def authorization_code(self, code):
+    def authorization_code(self, code: str) -> Dict[str, Any]:
+        """Exchanges an authorization code for Microsoft Graph tokens.
+
+        Args:
+            code (str): Authorization code returned by Microsoft OAuth.
+
+        Returns:
+            dict: The token response payload.
+        """
         token_url = f"{self.authority}/oauth2/v2.0/token"
         token_data = {
             "client_id": self.__client_id,
@@ -47,9 +82,14 @@ class MicrosoftOAuth:
         token_response = requests.post(token_url, data=token_data)
         return token_response.json()
 
-    def refresh_access_token(self, refresh_token):
-        """
-        Refresh the access token using the refresh token
+    def refresh_access_token(self, refresh_token: str) -> Optional[Dict[str, Any]]:
+        """Refresh the access token using the refresh token.
+
+        Args:
+            refresh_token (str): The Microsoft refresh token.
+
+        Returns:
+            dict or None: Token response payload if successful, otherwise None.
         """
         try:
             token_url = f"{self.authority}/oauth2/v2.0/token"
@@ -78,9 +118,14 @@ class MicrosoftOAuth:
             logger.error(f"Error refreshing token: {str(e)}")
             return None
 
-    def is_valid(self, access_token):
-        """
-        Validate if the access token is valid by making a test request to Microsoft Graph API
+    def is_valid(self, access_token: str) -> bool:
+        """Validate if the access token is valid by making a test request to Microsoft Graph API.
+
+        Args:
+            access_token (str): Access token to validate.
+
+        Returns:
+            bool: True if the token is valid, False otherwise.
         """
         try:
             if not access_token:

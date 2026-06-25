@@ -7,7 +7,7 @@ readme = (this_dir / "README.md").read_text(encoding="utf-8")
 
 setup(
     name="nxcore",
-    version="1.0.4",
+    version="1.0.5",
     author="Gustavo Liberatti",
     author_email="liberatti.gustavo@gmail.com",
     description="Internal library for use in private projects.",
@@ -31,6 +31,7 @@ setup(
         "oracle": ["cx_Oracle~=8.3.0"],
         "mongo": ["pymongo>=4.17.0"],
         "sqlite": [],
+        "duckdb": ["duckdb"],
         "redis": ["redis"],
         "rabbitmq": ["pika>=1.3.2"],
         "minio": ["minio>=7.2.20"],

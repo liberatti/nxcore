@@ -1,30 +1,27 @@
 import json
-from typing import Callable, Optional, Dict, Any
-from typing import List
+from typing import Any, Callable, Dict, List, Optional
 
 import pika
 
-from nxcore.middleware.logging import logger
+from nxcore.middleware.logging_manager import logger
 
 
 class RabbitTool:
-    """
-    Utility class for interacting with RabbitMQ.
+    """Utility class for interacting with RabbitMQ.
 
     Handles connection management, message publishing, and consumption
     with support for dead-letter exchanges and queues.
     """
 
     def __init__(
-            self,
-            host: str,
-            username: str,
-            password: str,
-            port: int = 5672,
-            virtual_host: str = "/",
+        self,
+        host: str,
+        username: str,
+        password: str,
+        port: int = 5672,
+        virtual_host: str = "/",
     ):
-        """
-        Initializes the RabbitTool with connection parameters.
+        """Initializes the RabbitTool with connection parameters.
 
         Args:
             host (str): RabbitMQ host address.
@@ -42,16 +39,24 @@ class RabbitTool:
         self.channel = None
 
     def __enter__(self) -> "RabbitTool":
-        """Context manager entry point."""
+        """Context manager entry point.
+
+        Returns:
+            RabbitTool: The connected instance.
+        """
         self.connect()
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb) -> None:
+    def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
         """Context manager exit point."""
         self.close()
 
     def is_connected(self) -> bool:
-        """Check if the connection to RabbitMQ is established."""
+        """Check if the connection to RabbitMQ is established.
+
+        Returns:
+            bool: True if connected, False otherwise.
+        """
         return self.connection is not None and not self.connection.is_closed
 
     def connect(self) -> None:
@@ -74,15 +79,12 @@ class RabbitTool:
             logger.debug("RabbitMQ connection closed")
 
     def publish(self, exchange: str, routing_key: str, message: Dict[str, Any]) -> None:
-        """
-        Publish a message to RabbitMQ.
+        """Publish a message to RabbitMQ.
 
         Args:
-            exchange: Name of the exchange
-            routing_key: Routing key for the message
-            message: Message to be published (will be converted to JSON)
-            exchange_type: Type of exchange (default: direct)
-            durable: Whether the exchange should be durable
+            exchange (str): Name of the exchange.
+            routing_key (str): Routing key for the message.
+            message (dict): Message payload to be published (will be converted to JSON).
         """
         if not self.connection or self.connection.is_closed:
             self.connect()
@@ -103,24 +105,21 @@ class RabbitTool:
         )
 
     def consume(
-            self,
-            queue_name: str,
-            callback: Callable,
-            exchange: Optional[str] = None,
-            routing_key: Optional[str] = None,
-            auto_ack: bool = False,
+        self,
+        queue_name: str,
+        callback: Callable[[Dict[str, Any], pika.spec.BasicProperties], None],
+        exchange: Optional[str] = None,
+        routing_key: Optional[str] = None,
+        auto_ack: bool = False,
     ) -> None:
-        """
-        Start consuming messages from a queue.
+        """Start consuming messages from a queue.
 
         Args:
-            queue_name: Name of the queue to consume from
-            callback: Function to be called when a message is received
-            exchange: Name of the exchange to bind to (optional)
-            routing_key: Routing key for binding (optional)
-            exchange_type: Type of exchange (default: direct)
-            durable: Whether the queue should be durable
-            auto_ack: Whether to automatically acknowledge messages
+            queue_name (str): Name of the queue to consume from.
+            callback (Callable): Function to be called when a message is received.
+            exchange (str, optional): Name of the exchange to bind to.
+            routing_key (str, optional): Routing key for binding.
+            auto_ack (bool): Whether to automatically acknowledge messages. Defaults to False.
         """
         if not self.connection or self.connection.is_closed:
             self.connect()
@@ -143,7 +142,6 @@ class RabbitTool:
                 logger.error(f"Failed to decode message: {body}")
                 if not auto_ack:
                     ch.basic_nack(delivery_tag=method.delivery_tag, requeue=auto_ack)
-
             except Exception as e:
                 logger.error(f"Error in message handler: {str(e)}", exc_info=True)
                 if not auto_ack:
@@ -159,22 +157,21 @@ class RabbitTool:
         self.channel.start_consuming()
 
     def create(
-            self,
-            exchange: str,
-            queue_name: str,
-            routing_key: Optional[List] = None,
-            exchange_type: str = "direct",
-            durable: bool = True,
+        self,
+        exchange: str,
+        queue_name: str,
+        routing_key: Optional[List[str]] = None,
+        exchange_type: str = "direct",
+        durable: bool = True,
     ) -> None:
-        """
-        Create exchange and queue if they don't exist, including dead-letter infrastructure.
+        """Create exchange and queue if they don't exist, including dead-letter infrastructure.
 
         Args:
             exchange (str): Name of the exchange.
             queue_name (str): Name of the queue.
             routing_key (list, optional): List of routing keys for binding.
             exchange_type (str, optional): Type of exchange. Defaults to "direct".
-            durable (bool, optional): Whether the exchange/queue should be durable. Defaults to True.
+            durable (bool, optional): Whether exchange/queue should be durable. Defaults to True.
         """
         if not self.connection or self.connection.is_closed:
             self.connect()
@@ -198,9 +195,9 @@ class RabbitTool:
             queue=f"{queue_name}.dlq",
             routing_key=f"{queue_name}.dlq",
         )
-        for rk in routing_key:
+        for rk in (routing_key or []):
             self.channel.queue_bind(exchange=exchange, queue=queue_name, routing_key=rk)
 
         logger.info(
-            f"Created exchange '{exchange}' and queue '{queue_name}' with routing key '{routing_key}'"
+            f"Created exchange '{exchange}' and queue '{queue_name}' with routing keys '{routing_key}'"
         )
