@@ -71,7 +71,13 @@ class LoggingManager:
         for h in list(lib_logger.handlers):
             lib_logger.removeHandler(h)
 
-        lib_logger.addHandler(console_handler)
+        gunicorn_logger = logging.getLogger("gunicorn.error")
+        if gunicorn_logger.handlers:
+            for h in gunicorn_logger.handlers:
+                lib_logger.addHandler(h)
+        else:
+            lib_logger.addHandler(console_handler)
+
         lib_logger.propagate = False
 
         # Silence noisy external libraries
@@ -87,9 +93,14 @@ class LoggingManager:
         loglevel_name = app.config.get("LOGLEVEL", "INFO")
         self.configure(loglevel_name)
 
-        if self.console_handler:
-            level = getattr(logging, loglevel_name.upper(), logging.INFO)
-            app.logger.setLevel(level)
+        level = getattr(logging, loglevel_name.upper(), logging.INFO)
+        app.logger.setLevel(level)
+
+        gunicorn_logger = logging.getLogger("gunicorn.error")
+        if gunicorn_logger.handlers:
+            for h in gunicorn_logger.handlers:
+                app.logger.addHandler(h)
+        elif self.console_handler:
             app.logger.addHandler(self.console_handler)
 
         if not hasattr(app, "extensions"):
