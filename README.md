@@ -1,8 +1,8 @@
 # nxcore
 
-[![Version](https://img.shields.io/badge/version-v0.0.7-blue.svg)](https://github.com/liberatti/nxcore)
-[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
-[![Python](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+[![Platform](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
+[![Sponsor](https://img.shields.io/badge/Sponsor-♥-ea4aaa?style=flat&logo=github)](https://github.com/sponsors/liberatti)
 
 Internal Python library designed to provide common and reusable functionalities for private web projects. It streamlines development by offering a robust set of tools for authentication, database integration, messaging, and AI-powered tasks.
 

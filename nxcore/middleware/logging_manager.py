@@ -1,5 +1,6 @@
 import logging
 from typing import Any, Optional
+
 try:
     from flask import Flask, current_app, has_app_context
 except Exception:
@@ -56,7 +57,7 @@ class LoggingManager:
 
         formatter = logging.Formatter(
             "%(asctime)s - %(levelname)s-"
-            "[%(filename)s][%(funcName)s][%(lineno)d] %(message)s"
+            "[%(module)s.%(funcName)s (%(lineno)d)] %(message)s"
         )
 
         console_handler = logging.StreamHandler()
@@ -122,7 +123,10 @@ class LoggingManager:
                 "Working outside of application context. "
                 "Make sure a Flask application is active or use app.app_context()."
             )
-        if not hasattr(current_app, "extensions") or "logging_manager" not in current_app.extensions:
+        if (
+            not hasattr(current_app, "extensions")
+            or "logging_manager" not in current_app.extensions
+        ):
             raise RuntimeError(
                 "LoggingManager has not been initialized on this Flask application."
             )

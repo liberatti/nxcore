@@ -54,9 +54,7 @@ class SQLite3DAO:
         if not self.is_connected():
             logger.debug(f"SQLite3DAO: {self.db_path}/app.sqlite")
             self.conn = sqlite3.connect(
-                f"{self.db_path}/app.sqlite",
-                timeout=300,
-                check_same_thread=False
+                f"{self.db_path}/app.sqlite", timeout=300, check_same_thread=False
             )
             self.conn.execute("PRAGMA journal_mode=WAL;")
             self.conn.execute("PRAGMA synchronous=NORMAL;")
@@ -112,7 +110,9 @@ class SQLite3DAO:
         """
         return vo
 
-    def json_load(self, json_data: Union[Dict[str, Any], List[Dict[str, Any]]], many: bool = False) -> Any:
+    def json_load(
+        self, json_data: Union[Dict[str, Any], List[Dict[str, Any]]], many: bool = False
+    ) -> Any:
         """Loads and validates JSON data using the assigned schema.
 
         Args:
@@ -136,7 +136,9 @@ class SQLite3DAO:
         """
         return self.schema.dump(row, many=many) if self.schema else row
 
-    def _interpolate_sql(self, sql: str, params: Union[Tuple[Any, ...], List[Any]]) -> str:
+    def _interpolate_sql(
+        self, sql: str, params: Union[Tuple[Any, ...], List[Any]]
+    ) -> str:
         """Interpolates SQL with parameters for debugging purposes.
 
         Args:
@@ -154,7 +156,12 @@ class SQLite3DAO:
         except Exception as e:
             return f"{sql} | PARAMS: {params} | {e}"
 
-    def _query(self, sql: str, params: Union[Tuple[Any, ...], List[Any]] = (), fetch: bool = False) -> Optional[List[Dict[str, Any]]]:
+    def _query(
+        self,
+        sql: str,
+        params: Union[Tuple[Any, ...], List[Any]] = (),
+        fetch: bool = False,
+    ) -> Optional[List[Dict[str, Any]]]:
         """Executes a SQL query.
 
         Args:
@@ -175,7 +182,11 @@ class SQLite3DAO:
         finally:
             cursor.close()
 
-    def get_all(self, pagination: Optional[Dict[str, Any]] = None, order_by: Optional[str] = None) -> Dict[str, Any]:
+    def get_all(
+        self,
+        pagination: Optional[Dict[str, Any]] = None,
+        order_by: Optional[str] = None,
+    ) -> Dict[str, Any]:
         """Retrieves all records with optional pagination and ordering.
 
         Args:
@@ -367,7 +378,11 @@ class SQLite3DAO:
         cursor.execute(sql)
         cursor.close()
 
-    def count_all(self, where_clause: Optional[str] = None, params: Optional[Union[Tuple[Any, ...], List[Any]]] = None) -> int:
+    def count_all(
+        self,
+        where_clause: Optional[str] = None,
+        params: Optional[Union[Tuple[Any, ...], List[Any]]] = None,
+    ) -> int:
         """Count all records in the table with optional where clause.
 
         Args:

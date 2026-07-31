@@ -2,6 +2,7 @@ from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
 
 import jwt
+
 try:
     from flask import request, current_app, has_app_context
 except Exception:
