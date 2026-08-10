@@ -37,24 +37,34 @@ def has_any_authority(
     Returns:
         Callable: The decorated function or an error response (401/403).
     """
+
     def wrapper(fn: Callable) -> Callable:
         @wraps(fn)
         def decorator(*args: Any, **kwargs: Any) -> Any:
-            from flask import current_app
+            from flask import current_app, has_app_context
 
             security_enabled = True
-            if current_app and 'SECURITY_ENABLED' in current_app.config:
-                security_enabled = current_app.config['SECURITY_ENABLED']
+            if has_app_context() and "SECURITY_ENABLED" in current_app.config:
+                security_enabled = current_app.config["SECURITY_ENABLED"]
             else:
                 security_enabled = base_config.get("SECURITY_ENABLED", True)
+
+            if isinstance(security_enabled, str):
+                security_enabled = security_enabled.lower() in (
+                    "true",
+                    "1",
+                    "t",
+                    "yes",
+                    "on",
+                )
 
             if not security_enabled:
                 return fn(*args, **kwargs)
 
             if _internal:
                 api_key = None
-                if current_app and 'API_KEY' in current_app.config:
-                    api_key = current_app.config['API_KEY']
+                if current_app and "API_KEY" in current_app.config:
+                    api_key = current_app.config["API_KEY"]
                 else:
                     api_key = base_config.get("API_KEY")
 
@@ -66,7 +76,9 @@ def has_any_authority(
                 token = jwt_mgr.get_token_from_request()
                 if token:
                     payload = jwt_mgr.decode(token)
-                    if any(a in payload.get("authorities", []) for a in (authorities or [])):
+                    if any(
+                        a in payload.get("authorities", []) for a in (authorities or [])
+                    ):
                         return fn(*args, **kwargs)
             except jwt.ExpiredSignatureError:
                 return response_error_401(
